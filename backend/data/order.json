@@ -1,0 +1,26 @@
+{
+  "orderItems": [
+    {
+      "product": "65da383c157f2cd7f0b028dd",
+      "name": "Dell Inspiron 3511 Laptop",
+      "price": "440.57",
+      "image": "produc_dfjs.jpg",
+      "quantity": 1
+    }
+  ],
+  "shippingInfo": {
+    "address": "5 mahaveer ",
+    "city": "chennai",
+    "country": "india",
+    "postalCode": "66",
+    "phoneNo": "8965784587"
+  },
+  "itemPrice": 2.75,
+  "taxPrice": "0.14",
+  "shippingPrice": 25,
+  "totalPrice": 469.07,
+  "paymentInfo": {
+    "id": "jdfj_fjsuf646_45fj",
+    "status": "success"
+  }
+}
