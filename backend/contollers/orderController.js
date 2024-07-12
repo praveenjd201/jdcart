@@ -7,8 +7,8 @@ exports.newOrder = catchAsyncError(async (req, res, next) => {
   const {
     orderItems,
     shippingInfo,
-    itemPrice,
-    taxprice,
+    itemsPrice,
+    taxPrice,
     shippingPrice,
     totalPrice,
     paymentInfo,
@@ -16,7 +16,8 @@ exports.newOrder = catchAsyncError(async (req, res, next) => {
   const order = await OrderModel.create({
     orderItems,
     shippingInfo,
-    itemPrice,
+    itemsPrice,
+    taxPrice,
     shippingPrice,
     totalPrice,
     paymentInfo,
@@ -56,7 +57,7 @@ exports.myOrders = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// Admin : GEet all orders   -   /api/v1/orders
+// Admin : GEet all orders   -   /api/v1/admin/orders
 exports.orders = catchAsyncError(async (req, res, next) => {
   const orders = await OrderModel.find();
   let totalAmount = 0;

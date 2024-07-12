@@ -21,7 +21,7 @@ const userSchema = mongoose.Schema({
     maxlength: [6, "password cannot exceed  6 characters"],
     select: false, //------------------------------- hides the password from being shown in queries by default
   },
-  avatar: { type: String, required: true },
+  avatar: { type: String },
   role: { type: String, default: "user" },
   resetPasswordToken: String,
   resetPasswordTokeExpire: Date,

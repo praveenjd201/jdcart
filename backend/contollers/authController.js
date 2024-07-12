@@ -8,7 +8,16 @@ const crypto = require("crypto");
 
 // Register user  -    /api/v1/register
 exports.registerUser = catchAsyncError(async (req, res, next) => {
-  const { name, email, password, avatar } = req.body; //using de-structuring method  to extract data from the request body
+  const { name, email, password } = req.body; //using de-structuring method  to extract data from the request body
+  let avatar; // undifined
+  // console.log(req.file);
+  let BASE_URL = process.env.BACKEND_URL;
+  if (process.env.NODE_ENV === "production") {
+    BASE_URL = `${req.protocol}://${req.get("host")}`;
+  }
+  if (req.file) {
+    avatar = `${BASE_URL}/uploads/user/${req.file.originalname}`;
+  }
   const user = await UserModel.create({
     name,
     email,
@@ -65,6 +74,7 @@ exports.logoutUser = (req, res, next) => {
 // Forgot Password  -  /api/v1/password/forgot
 exports.forgotPassword = catchAsyncError(async (req, res, next) => {
   const { email } = req.body; // get email  from request body using destructuring method
+
   const user = await UserModel.findOne({ email });
   if (!user) {
     return next(new errorHandler(404, "no user found with this email"));
@@ -90,9 +100,12 @@ exports.forgotPassword = catchAsyncError(async (req, res, next) => {
     return next(new errorHandler(500, err.message));
   }
 
-  const resetURL = `${req.protocol}://${req.get(
-    "host"
-  )}/api/password/reset/${resetToken}`;
+  let BASE_URL = process.env.FRONTEND_URL;
+  if (process.env.NODE_ENV === "production") {
+    BASE_URL = `${req.protocol}://${req.get("host")}`;
+  }
+
+  const resetURL = `${BASE_URL}/reset/${resetToken}`;
 
   const message = `you password reset url is as follows \n\n  ${resetURL}\n\n If you have not requested this email, then ignore it`;
   try {
@@ -131,7 +144,8 @@ exports.resetPassword = catchAsyncError(async (req, res, next) => {
       new errorHandler(400, "Password reset token  is invalid or expired")
     );
   }
-  if (req.body.password !== req.body.confirm_password) {
+
+  if (req.body.password !== req.body.confirmPassword) {
     return next(new errorHandler(400, "Passwords does not match"));
   }
 
@@ -155,13 +169,13 @@ exports.getProfile = catchAsyncError(async function (req, res, next) {
 exports.changePassword = catchAsyncError(async function (req, res, next) {
   const user = await UserModel.findById(req.user.id).select("+password");
 
-  if (!(await user.isValidPassword(req.body.oldPassword))) {
+  if (!(await user.isValidPassword(req.body.currentPassword))) {
     return next(new errorHandler(400, "Your current password is wrong!"));
   }
-  if (req.body.newpassword !== req.body.confirm_password) {
+  if (req.body.newPassword !== req.body.confirmPassword) {
     return next(new errorHandler(400, "Passwords does not match"));
   }
-  user.password = req.body.newpassword;
+  user.password = req.body.newPassword;
   await user.save();
   res.status(200).json({
     success: true,
@@ -171,10 +185,22 @@ exports.changePassword = catchAsyncError(async function (req, res, next) {
 
 // update profile   -    api/v1/updateprofile
 exports.updateProfile = catchAsyncError(async function (req, res, next) {
-  const newUserData = {
+  let newUserData = {
     name: req.body.name,
     email: req.body.email,
   };
+  // console.log("name", newUserData.name, "email", newUserData.email);
+  let avatar; // undifined
+
+  let BASE_URL = process.env.BACKEND_URL;
+  if (process.env.NODE_ENV === "production") {
+    BASE_URL = `${req.protocol}://${req.get("host")}`;
+  }
+  if (req.file) {
+    avatar = `${BASE_URL}/uploads/user/${req.file.originalname}`;
+    newUserData = { ...newUserData, avatar };
+  }
+
   const user = await UserModel.findByIdAndUpdate(req.user.id, newUserData, {
     new: true,
     runValidators: true,

@@ -5,15 +5,30 @@ const ApiFeatures = require("../utils/apiFeatures");
 
 // get products  --  /api/v1/products
 exports.getProducts = async (req, res, next) => {
-  const resPerPage = 2;
-  const apiFeatures = new ApiFeatures(Product.find(), req.query)
-    .search()
-    .filter()
-    .paginate(resPerPage);
-  const products = await apiFeatures.query;
+  const resPerPage = 4;
+  // const apiFeatures = new ApiFeatures(Product.find(), req.query)
+  //   .search()
+  //   .filter()
+  //   .paginate(resPerPage);   no more need on this line
+
+  let buildQuery = () => {
+    return new ApiFeatures(Product.find(), req.query).search().filter();
+  };
+
+  const filteredProductCount = await buildQuery().query.countDocuments({});
+  const totalProductsCount = await Product.countDocuments({}); // to get total number of products in database
+  // await new Promise((resolve) => setTimeout(resolve, 3000)); // createing delay while fething data through api
+  // return next(new ErrorHandler(400, "unable to send the products")); // to check error throung tostify
+  let productCount = totalProductsCount;
+  if (filteredProductCount !== totalProductsCount) {
+    productCount = filteredProductCount;
+  }
+  const products = await buildQuery().paginate(resPerPage).query;
+
   res.status(200).json({
     success: true,
-    count: products.length,
+    count: productCount,
+    resPerPage,
     products,
   });
 };
@@ -21,6 +36,19 @@ exports.getProducts = async (req, res, next) => {
 // create product  --  /api/v1/product/new
 
 exports.newProduct = catchAsyncError(async (req, res, next) => {
+  let images = [];
+
+  let BASE_URL = process.env.BACKEND_URL;
+  if (process.env.NODE_ENV === "production") {
+    BASE_URL = `${req.protocol}://${req.get("host")}`;
+  }
+  if (req.files.length > 0) {
+    req.files.forEach((file) => {
+      let url = `${BASE_URL}/uploads/products/${file.originalname}`;
+      images.push({ image: url });
+    });
+  }
+  req.body.images = images;
   req.body.user = req.user.id;
   const product = await Product.create(req.body);
   res.status(201).json({
@@ -31,10 +59,14 @@ exports.newProduct = catchAsyncError(async (req, res, next) => {
 
 // get single product  --  /api/v1/prodcuct/:id
 exports.getSingleProduct = catchAsyncError(async (req, res, next) => {
-  const product = await Product.findById(req.params.product_id);
+  const product = await Product.findById(req.params.product_id).populate(
+    "reviews.user",
+    "name email"
+  );
   if (!product) {
     return next(new ErrorHandler(404, "Product not found!"));
   }
+  // await new Promise((resolve) => setTimeout(resolve, 3000)); // creating delay while fething data through api
   res.status(201).json({
     sucess: true,
     product,
@@ -44,14 +76,33 @@ exports.getSingleProduct = catchAsyncError(async (req, res, next) => {
 // update product  --  /api/v1/prodcuct/:id
 
 exports.updateProduct = catchAsyncError(async (req, res, next) => {
-  let product = await Product.findById(req.params.product_id);
+  let product = await Product.findById(req.params.id);
+  let images = [];
+
+  // ------------ It keeps the existing images--------------------------
+  if (req.body.imagesCleared === "false") {
+    images = product.images;
+  }
+
+  let BASE_URL = process.env.BACKEND_URL;
+  if (process.env.NODE_ENV === "production") {
+    BASE_URL = `${req.protocol}://${req.get("host")}`;
+  }
+
+  if (req.files.length > 0) {
+    req.files.forEach((file) => {
+      let url = `${BASE_URL}/uploads/products/${file.originalname}`;
+      images.push({ image: url });
+    });
+  }
+  req.body.images = images;
   if (!product) {
     return res.status(404).json({
       success: false,
       message: "The product you are trying to update does not exist.",
     });
   }
-  product = await Product.findByIdAndUpdate(req.params.product_id, req.body, {
+  product = await Product.findByIdAndUpdate(req.params.id, req.body, {
     new: true, //return the updated user
     runValidators: true, //validate fields even if they haven't changed
   });
@@ -64,13 +115,13 @@ exports.updateProduct = catchAsyncError(async (req, res, next) => {
 // delete product  --  /api/v1/prodcuct/:id
 
 exports.deleteProduct = async (req, res, next) => {
-  let product = await Product.findById(req.params.product_id);
+  let product = await Product.findById(req.params.id);
   if (!product) {
     return res
       .status(400)
       .json({ success: false, message: "This product is not available" });
   }
-  product = await Product.findByIdAndDelete(req.params.product_id);
+  product = await Product.findByIdAndDelete(req.params.id);
   res.status(200).json({
     success: true,
     message: "product deleted successfully",
@@ -108,7 +159,7 @@ exports.createReview = catchAsyncError(async (req, res, next) => {
   // find the average of the product reviews
   product.ratings =
     product.reviews.reduce((accumlator, review) => {
-      return review.rating + accumlator;
+      return Number(review.rating) + accumlator;
     }, 0) / product.reviews.length;
 
   product.ratings = isNaN(product.ratings) ? 0 : product.ratings;
@@ -121,7 +172,10 @@ exports.createReview = catchAsyncError(async (req, res, next) => {
 
 // Get Review  - /api/v1/reviews?id={prodcutId}
 exports.getReviews = catchAsyncError(async (req, res, next) => {
-  const product = await Product.findById(req.query.id);
+  const product = await Product.findById(req.query.id).populate(
+    "reviews.user",
+    "name email"
+  );
   res.status(200).json({
     success: true,
     reviews: product.reviews,
@@ -135,7 +189,7 @@ exports.deleteReview = catchAsyncError(async (req, res, next) => {
   const reviews = product.reviews.filter((review) => {
     return review._id.toString() !== req.query.id.toString();
   });
-  console.log(reviews.length);
+  // console.log(reviews.length);
   // numer of review updating
   const numOfReviews = reviews.length;
   //finding the average with filtered reveiws
@@ -153,5 +207,14 @@ exports.deleteReview = catchAsyncError(async (req, res, next) => {
   });
   res.status(200).json({
     success: true,
+  });
+});
+
+// Admin get products - /api/v1/admin/products
+exports.getAdminProducts = catchAsyncError(async (req, res, next) => {
+  const products = await Product.find();
+  res.status(200).json({
+    success: true,
+    products,
   });
 });

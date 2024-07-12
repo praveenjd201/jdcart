@@ -20,10 +20,10 @@ router.route("/myorders").get(isAuthenticatedUser, myOrders);
 
 //Admin Routes
 router
-  .route("/orders")
+  .route("/admin/orders")
   .get(isAuthenticatedUser, isAuthorizeRoles("admin"), orders);
 router
-  .route("/order/:id")
+  .route("/admin/order/:id")
   .put(isAuthenticatedUser, isAuthorizeRoles("admin"), updateOrder)
   .delete(isAuthenticatedUser, isAuthorizeRoles("admin"), deleteOrder);
 
